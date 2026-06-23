@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Shipping Invoice Generator</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --ink:#1b2430;
@@ -236,6 +237,13 @@
     color:var(--ink-soft);
   }
   .add-row-btn{margin-top:10px;}
+
+  .import-toolbar{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom:8px;
+  }
 
   /* ---------- info icon / tooltip ---------- */
   .col-hs{position:relative;}
@@ -608,6 +616,14 @@
         <span class="badge" id="itemCountBadge">0 items</span>
       </div>
       <div class="panel-body">
+
+        <div class="import-toolbar">
+          <button class="btn btn-sm" id="downloadTemplateBtn">⬇ Download import template</button>
+          <button class="btn btn-sm" id="importFileBtn">⬆ Import from file</button>
+          <input type="file" id="importFileInput" accept=".csv,.xlsx,.xls" style="display:none">
+        </div>
+        <p class="hint">For lots of items: download the template, fill it in with a spreadsheet app, then import it. Qty &amp; Unit Price drive the math — Line Total is optional and only used to flag mismatches. Accepts .csv or .xlsx.</p>
+
         <table class="items-table">
           <thead>
             <tr>
@@ -761,6 +777,10 @@
     subtotalDisplay: document.getElementById("subtotalDisplay"),
     totalDisplay: document.getElementById("totalDisplay"),
 
+    downloadTemplateBtn: document.getElementById("downloadTemplateBtn"),
+    importFileBtn: document.getElementById("importFileBtn"),
+    importFileInput: document.getElementById("importFileInput"),
+
     previewSheet: document.getElementById("previewSheet"),
     exportPdfBtn: document.getElementById("exportPdfBtn")
   };
@@ -858,6 +878,169 @@
 
   el.addItemBtn.addEventListener("click", function(){
     addItemRow();
+  });
+
+  /* ---------------------------------------------------------------
+     Bulk import line items from a CSV/Excel template
+  ----------------------------------------------------------------*/
+  var TEMPLATE_HEADERS = ["Item Name", "HS Code", "Qty", "Unit Price (USD)", "Line Total (USD)"];
+
+  function downloadTemplate(){
+    var csv = TEMPLATE_HEADERS.join(",") + "\r\n";
+    var blob = new Blob([csv], {type: "text/csv;charset=utf-8;"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "line-items-template.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast("Template downloaded.");
+  }
+
+  function normalizeHeaderCell(h){
+    return String(h == null ? "" : h).toLowerCase().replace(/[^a-z0-9]/g, "");
+  }
+
+  // Scan a header row and map our five known columns to their index.
+  // Matching is tolerant of casing, spacing, and minor wording
+  // differences (e.g. "Quantity" instead of "Qty") so a hand-edited
+  // template still imports correctly.
+  function detectColumns(headerRow){
+    var map = {name: -1, hs: -1, qty: -1, price: -1, total: -1};
+    if(!headerRow) return map;
+    headerRow.forEach(function(cell, idx){
+      var h = normalizeHeaderCell(cell);
+      if(!h) return;
+      if(map.name === -1 && (h.indexOf("itemname") !== -1 || h === "item" || h === "name" || h.indexOf("description") !== -1 || h.indexOf("productname") !== -1)){
+        map.name = idx;
+      }else if(map.hs === -1 && h.indexOf("hscode") !== -1){
+        map.hs = idx;
+      }else if(map.qty === -1 && (h === "qty" || h.indexOf("quantity") !== -1)){
+        map.qty = idx;
+      }else if(map.price === -1 && h.indexOf("unitprice") !== -1){
+        map.price = idx;
+      }else if(map.total === -1 && h.indexOf("linetotal") !== -1){
+        map.total = idx;
+      }
+    });
+    return map;
+  }
+
+  function processImportedRows(rows){
+    if(!rows || rows.length === 0){
+      toast("That file doesn't have any rows to import.");
+      return;
+    }
+
+    var headerRowIdx = -1;
+    var colMap = null;
+    for(var i = 0; i < Math.min(rows.length, 5); i++){
+      var map = detectColumns(rows[i]);
+      if(map.name !== -1 && map.qty !== -1 && map.price !== -1){
+        headerRowIdx = i;
+        colMap = map;
+        break;
+      }
+    }
+    if(headerRowIdx === -1){
+      toast("Couldn't find the Item Name / Qty / Unit Price columns — please use the downloaded template's headers.");
+      return;
+    }
+
+    var imported = [];
+    var mismatchCount = 0;
+
+    for(var r = headerRowIdx + 1; r < rows.length; r++){
+      var row = rows[r];
+      if(!row || row.length === 0) continue;
+      var isBlank = row.every(function(c){ return String(c == null ? "" : c).trim() === ""; });
+      if(isBlank) continue;
+
+      var name = colMap.name !== -1 ? String(row[colMap.name] == null ? "" : row[colMap.name]).trim() : "";
+      var hs = colMap.hs !== -1 ? String(row[colMap.hs] == null ? "" : row[colMap.hs]).trim() : "";
+      var qty = colMap.qty !== -1 ? parseFloat(row[colMap.qty]) : NaN;
+      var price = colMap.price !== -1 ? parseFloat(row[colMap.price]) : NaN;
+      if(!isFinite(qty)) qty = 0;
+      if(!isFinite(price)) price = 0;
+
+      if(!name && !hs && qty === 0 && price === 0) continue;
+
+      if(colMap.total !== -1){
+        var rawTotal = row[colMap.total];
+        if(rawTotal !== undefined && String(rawTotal).trim() !== ""){
+          var providedTotal = parseFloat(rawTotal);
+          var computedTotal = qty * price;
+          if(isFinite(providedTotal) && Math.abs(providedTotal - computedTotal) > 0.01){
+            mismatchCount++;
+          }
+        }
+      }
+
+      imported.push({id: uid(), name: name, hs: hs, qty: qty, price: price});
+    }
+
+    if(imported.length === 0){
+      toast("No valid item rows were found in that file.");
+      return;
+    }
+
+    // If the only existing row is still the untouched starter row,
+    // drop it so imported items don't sit below a stray blank line.
+    if(items.length === 1){
+      var only = items[0];
+      if(!only.name && !only.hs && (parseFloat(only.price) || 0) === 0){
+        items = [];
+      }
+    }
+
+    items = items.concat(imported);
+    renderItemsTable();
+
+    var msg = "Imported " + imported.length + (imported.length === 1 ? " item." : " items.");
+    if(mismatchCount > 0){
+      msg += " " + mismatchCount + " line total" + (mismatchCount === 1 ? "" : "s") +
+        " didn't match Qty × Unit Price and " + (mismatchCount === 1 ? "was" : "were") + " recalculated.";
+    }
+    toast(msg);
+  }
+
+  el.downloadTemplateBtn.addEventListener("click", downloadTemplate);
+
+  el.importFileBtn.addEventListener("click", function(){
+    el.importFileInput.click();
+  });
+
+  el.importFileInput.addEventListener("change", function(e){
+    var file = e.target.files && e.target.files[0];
+    if(!file) return;
+
+    if(!window.XLSX){
+      toast("Import library failed to load. Check your internet connection and try again.");
+      el.importFileInput.value = "";
+      return;
+    }
+
+    var reader = new FileReader();
+    reader.onload = function(evt){
+      try{
+        var data = new Uint8Array(evt.target.result);
+        var workbook = XLSX.read(data, {type: "array"});
+        var sheet = workbook.Sheets[workbook.SheetNames[0]];
+        var rows = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: "", raw: false});
+        processImportedRows(rows);
+      }catch(err){
+        console.error(err);
+        toast("Could not read that file. Make sure it's a CSV or Excel file matching the template.");
+      }
+      el.importFileInput.value = "";
+    };
+    reader.onerror = function(){
+      toast("Could not read that file.");
+      el.importFileInput.value = "";
+    };
+    reader.readAsArrayBuffer(file);
   });
 
   function updateTotals(){
