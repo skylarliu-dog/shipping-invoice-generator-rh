@@ -224,11 +224,27 @@
   }
   .items-table .num{text-align:right;font-family:var(--mono);}
   .items-table .num input{text-align:right;font-family:var(--mono);}
-  .col-qty{width:70px;}
-  .col-price{width:100px;}
-  .col-total{width:110px;}
-  .col-hs{width:110px;}
-  .col-del{width:34px;}
+  .col-qty{width:62px;}
+  .col-price{width:92px;}
+  .col-total{width:104px;}
+  .col-hs{width:96px;}
+  .col-origin{width:96px;}
+  .col-actions{width:84px;}
+  .row-actions{display:flex;gap:3px;justify-content:flex-end;}
+  .icon-btn{
+    width:24px;height:24px;
+    display:inline-flex;align-items:center;justify-content:center;
+    border:1px solid transparent;
+    background:transparent;
+    border-radius:6px;
+    cursor:pointer;
+    font-size:13px;
+    line-height:1;
+    color:var(--ink-soft);
+    padding:0;
+  }
+  .icon-btn:hover{background:var(--line-soft);color:var(--ink);}
+  .icon-btn.danger:hover{background:var(--danger-soft);color:var(--danger);}
   .line-total-cell{
     font-family:var(--mono);
     font-size:13.5px;
@@ -244,6 +260,35 @@
     flex-wrap:wrap;
     margin-bottom:8px;
   }
+
+  .catalog-toolbar{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    margin-bottom:10px;
+  }
+  .catalog-toolbar select{flex:1;}
+
+  .logo-upload{
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .logo-thumb{
+    width:64px;
+    height:64px;
+    border:1px dashed var(--line);
+    border-radius:8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    background:#fafbfc;
+    flex-shrink:0;
+  }
+  .logo-thumb img{max-width:100%;max-height:100%;object-fit:contain;}
+  .logo-thumb.empty{color:var(--ink-soft);font-size:10px;text-align:center;padding:4px;}
+  .logo-actions{display:flex;flex-direction:column;gap:6px;}
 
   /* ---------- info icon / tooltip ---------- */
   .col-hs{position:relative;}
@@ -363,6 +408,8 @@
     color:var(--ink);
     box-shadow:0 1px 2px rgba(20,30,40,.04);
   }
+  .sheet-logo{margin-bottom:10px;}
+  .sheet-logo img{max-height:46px;max-width:180px;object-fit:contain;}
   .sheet-title{
     text-align:center;
     font-size:20px;
@@ -380,6 +427,19 @@
     padding-bottom:16px;
   }
   .sheet-meta div b{display:block;color:var(--ink-soft);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;}
+  .sheet-purpose{
+    font-size:11.5px;
+    margin:-6px 0 18px;
+  }
+  .sheet-purpose b{
+    display:inline;
+    color:var(--ink-soft);
+    font-weight:600;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    margin-right:6px;
+  }
   .sheet-parties{
     display:grid;
     grid-template-columns:1fr 1fr;
@@ -453,12 +513,16 @@
     color:#fff;
     font-size:13px;
     font-weight:600;
-    padding:10px 18px;
+    padding:12px 18px;
     border-radius:8px;
     opacity:0;
     pointer-events:none;
     transition:opacity .2s, transform .2s;
     z-index:50;
+    max-width:380px;
+    white-space:pre-line;
+    text-align:left;
+    line-height:1.55;
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
@@ -483,7 +547,10 @@
   <div class="form-col">
 
     <div class="panel">
-      <div class="panel-head"><h2>Invoice Details</h2></div>
+      <div class="panel-head">
+        <h2>Invoice Details</h2>
+        <button class="btn btn-sm" id="newInvoiceBtn">+ New invoice</button>
+      </div>
       <div class="panel-body">
         <div class="row row-3">
           <div class="field">
@@ -499,6 +566,35 @@
             <input id="customerId" type="text" class="english-only">
           </div>
         </div>
+
+        <div class="field">
+          <label for="exportPurpose">Purpose of Export</label>
+          <select id="exportPurpose">
+            <option value="">— Select —</option>
+            <option value="Commercial / Sale">Commercial / Sale</option>
+            <option value="Commercial Sample">Commercial Sample</option>
+            <option value="Return for Repair">Return for Repair</option>
+            <option value="Replacement">Replacement</option>
+            <option value="Gift">Gift</option>
+            <option value="Intercompany Transfer">Intercompany Transfer</option>
+            <option value="__custom__">Custom…</option>
+          </select>
+        </div>
+        <div class="field" id="exportPurposeCustomField" style="display:none;">
+          <label for="exportPurposeCustom">Custom Purpose</label>
+          <input id="exportPurposeCustom" type="text" class="english-only">
+        </div>
+
+        <div class="divider-label">Company Logo (optional)</div>
+        <div class="logo-upload">
+          <div class="logo-thumb" id="logoThumb"><span class="empty">No logo</span></div>
+          <div class="logo-actions">
+            <button class="btn btn-sm" id="logoUploadBtn">Upload logo</button>
+            <button class="btn btn-sm" id="logoRemoveBtn" style="display:none;">Remove logo</button>
+            <input type="file" id="logoInput" accept="image/png,image/jpeg" style="display:none">
+          </div>
+        </div>
+        <p class="hint">PNG or JPG, shown at the top of the invoice. Entirely optional — the invoice works fine without one.</p>
       </div>
     </div>
 
@@ -617,6 +713,13 @@
       </div>
       <div class="panel-body">
 
+        <div class="catalog-toolbar">
+          <select id="itemCatalogSelect"><option value="">— Add from saved item catalog —</option></select>
+          <button class="btn btn-sm" id="addFromCatalogBtn">+ Add to invoice</button>
+          <button class="btn-danger" id="deleteCatalogBtn" title="Remove selected catalog item">✕</button>
+        </div>
+        <p class="hint">Use the 💾 button on any row below to save it to your catalog for next time.</p>
+
         <div class="import-toolbar">
           <button class="btn btn-sm" id="downloadTemplateBtn">⬇ Download import template</button>
           <button class="btn btn-sm" id="importFileBtn">⬆ Import from file</button>
@@ -637,10 +740,11 @@
                   </div>
                 </span>
               </th>
+              <th class="col-origin">Country of Origin</th>
               <th class="col-qty">Qty</th>
               <th class="col-price">Unit Price (USD)</th>
               <th class="col-total">Line Total</th>
-              <th class="col-del"></th>
+              <th class="col-actions"></th>
             </tr>
           </thead>
           <tbody id="itemsBody"></tbody>
@@ -686,6 +790,8 @@
   ----------------------------------------------------------------*/
   var LS_SHIPPERS = "invoiceapp.shipperPresets";
   var LS_CONSIGNEES = "invoiceapp.consigneePresets";
+  var LS_ITEM_CATALOG = "invoiceapp.itemPresets";
+  var LS_LOGO = "invoiceapp.logo";
   var LS_DRAFT = "invoiceapp.draft";
 
   function loadJSON(key, fallback){
@@ -711,6 +817,9 @@
 
   var shipperPresets = loadJSON(LS_SHIPPERS, []);
   var consigneePresets = loadJSON(LS_CONSIGNEES, []);
+  var itemCatalog = loadJSON(LS_ITEM_CATALOG, []);
+  var logoData = null;
+  try{ logoData = loadJSON(LS_LOGO, null); }catch(e){ logoData = null; }
 
   function uid(){
     return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
@@ -752,6 +861,16 @@
     invoiceNo: document.getElementById("invoiceNo"),
     invoiceDate: document.getElementById("invoiceDate"),
     customerId: document.getElementById("customerId"),
+    newInvoiceBtn: document.getElementById("newInvoiceBtn"),
+
+    exportPurpose: document.getElementById("exportPurpose"),
+    exportPurposeCustomField: document.getElementById("exportPurposeCustomField"),
+    exportPurposeCustom: document.getElementById("exportPurposeCustom"),
+
+    logoThumb: document.getElementById("logoThumb"),
+    logoUploadBtn: document.getElementById("logoUploadBtn"),
+    logoRemoveBtn: document.getElementById("logoRemoveBtn"),
+    logoInput: document.getElementById("logoInput"),
 
     shipperPreset: document.getElementById("shipperPreset"),
     shipperName: document.getElementById("shipperName"),
@@ -777,6 +896,10 @@
     subtotalDisplay: document.getElementById("subtotalDisplay"),
     totalDisplay: document.getElementById("totalDisplay"),
 
+    itemCatalogSelect: document.getElementById("itemCatalogSelect"),
+    addFromCatalogBtn: document.getElementById("addFromCatalogBtn"),
+    deleteCatalogBtn: document.getElementById("deleteCatalogBtn"),
+
     downloadTemplateBtn: document.getElementById("downloadTemplateBtn"),
     importFileBtn: document.getElementById("importFileBtn"),
     importFileInput: document.getElementById("importFileInput"),
@@ -786,7 +909,7 @@
   };
 
   /* ---------------------------------------------------------------
-     Line items state: array of {id, name, hs, qty, price}
+     Line items state: array of {id, name, hs, origin, qty, price}
   ----------------------------------------------------------------*/
   var items = [];
 
@@ -802,6 +925,7 @@
       id: id,
       name: data.name || "",
       hs: data.hs || "",
+      origin: data.origin || "",
       qty: (data.qty !== undefined ? data.qty : 1),
       price: (data.price !== undefined ? data.price : 0)
     };
@@ -811,6 +935,14 @@
 
   function removeItem(id){
     items = items.filter(function(it){ return it.id !== id; });
+    renderItemsTable();
+  }
+
+  function duplicateItem(id){
+    var idx = items.findIndex(function(it){ return it.id === id; });
+    if(idx === -1) return;
+    var copy = Object.assign({}, items[idx], {id: uid()});
+    items.splice(idx + 1, 0, copy);
     renderItemsTable();
   }
 
@@ -825,10 +957,15 @@
       tr.innerHTML =
         '<td><input type="text" class="f-name english-only" value="' + escapeAttr(item.name) + '"></td>' +
         '<td class="col-hs"><input type="text" class="f-hs english-only" value="' + escapeAttr(item.hs) + '"></td>' +
+        '<td class="col-origin"><input type="text" class="f-origin english-only" value="' + escapeAttr(item.origin) + '"></td>' +
         '<td class="col-qty num"><input type="number" min="0" step="1" class="f-qty" value="' + item.qty + '"></td>' +
         '<td class="col-price num"><input type="number" min="0" step="0.01" class="f-price" value="' + item.price + '"></td>' +
         '<td class="col-total line-total-cell">' + fmtMoney(lineTotal) + '</td>' +
-        '<td class="col-del"><button class="btn-danger f-del" title="Remove row">✕</button></td>';
+        '<td class="col-actions"><div class="row-actions">' +
+          '<button class="icon-btn f-save-catalog" type="button" title="Save to item catalog">💾</button>' +
+          '<button class="icon-btn f-dup" type="button" title="Duplicate row">⧉</button>' +
+          '<button class="icon-btn danger f-del" type="button" title="Remove row">✕</button>' +
+        '</div></td>';
 
       el.itemsBody.appendChild(tr);
     });
@@ -857,6 +994,7 @@
 
     if(e.target.classList.contains("f-name")) item.name = e.target.value;
     if(e.target.classList.contains("f-hs")) item.hs = e.target.value;
+    if(e.target.classList.contains("f-origin")) item.origin = e.target.value;
     if(e.target.classList.contains("f-qty")) item.qty = e.target.value;
     if(e.target.classList.contains("f-price")) item.price = e.target.value;
 
@@ -870,9 +1008,18 @@
   });
 
   el.itemsBody.addEventListener("click", function(e){
-    if(e.target.classList.contains("f-del")){
-      var tr = e.target.closest("tr");
-      if(tr) removeItem(tr.dataset.id);
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    var tr = btn.closest("tr");
+    if(!tr) return;
+    var id = tr.dataset.id;
+
+    if(btn.classList.contains("f-del")){
+      removeItem(id);
+    }else if(btn.classList.contains("f-dup")){
+      duplicateItem(id);
+    }else if(btn.classList.contains("f-save-catalog")){
+      saveItemToCatalog(id);
     }
   });
 
@@ -881,9 +1028,72 @@
   });
 
   /* ---------------------------------------------------------------
+     Item catalog — like the shipper/consignee presets, but for
+     frequently shipped products. Saves Item Name, HS Code, Country
+     of Origin, and Unit Price so they can be re-added in one click.
+  ----------------------------------------------------------------*/
+  function refreshItemCatalogSelect(){
+    var currentVal = el.itemCatalogSelect.value;
+    el.itemCatalogSelect.innerHTML = '<option value="">— Add from saved item catalog —</option>';
+    itemCatalog.forEach(function(p){
+      var opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.name || "(unnamed)";
+      el.itemCatalogSelect.appendChild(opt);
+    });
+    if(itemCatalog.some(function(p){ return p.id === currentVal; })){
+      el.itemCatalogSelect.value = currentVal;
+    }
+  }
+
+  function saveItemToCatalog(rowId){
+    var item = items.find(function(it){ return it.id === rowId; });
+    if(!item) return;
+    if(!String(item.name || "").trim()){
+      toast("Add an Item Name before saving it to the catalog.");
+      return;
+    }
+    itemCatalog.push({
+      id: uid(),
+      name: item.name,
+      hs: item.hs || "",
+      origin: item.origin || "",
+      price: parseFloat(item.price) || 0
+    });
+    saveJSON(LS_ITEM_CATALOG, itemCatalog);
+    refreshItemCatalogSelect();
+    toast('Saved "' + item.name + '" to your item catalog.');
+  }
+
+  el.addFromCatalogBtn.addEventListener("click", function(){
+    var preset = itemCatalog.find(function(p){ return p.id === el.itemCatalogSelect.value; });
+    if(!preset){
+      toast("Select a saved item from the catalog first.");
+      return;
+    }
+    addItemRow({name: preset.name, hs: preset.hs, origin: preset.origin, qty: 1, price: preset.price});
+    toast('Added "' + preset.name + '" to the invoice.');
+  });
+
+  el.deleteCatalogBtn.addEventListener("click", function(){
+    var preset = itemCatalog.find(function(p){ return p.id === el.itemCatalogSelect.value; });
+    if(!preset){
+      toast("Select a catalog item to delete.");
+      return;
+    }
+    if(!confirm('Remove "' + preset.name + '" from the item catalog? This cannot be undone.')) return;
+    itemCatalog = itemCatalog.filter(function(p){ return p.id !== preset.id; });
+    saveJSON(LS_ITEM_CATALOG, itemCatalog);
+    refreshItemCatalogSelect();
+    toast('Removed "' + preset.name + '" from the catalog.');
+  });
+
+  refreshItemCatalogSelect();
+
+  /* ---------------------------------------------------------------
      Bulk import line items from a CSV/Excel template
   ----------------------------------------------------------------*/
-  var TEMPLATE_HEADERS = ["Item Name", "HS Code", "Qty", "Unit Price (USD)", "Line Total (USD)"];
+  var TEMPLATE_HEADERS = ["Item Name", "HS Code", "Country of Origin", "Qty", "Unit Price (USD)", "Line Total (USD)"];
 
   function downloadTemplate(){
     var csv = TEMPLATE_HEADERS.join(",") + "\r\n";
@@ -903,12 +1113,12 @@
     return String(h == null ? "" : h).toLowerCase().replace(/[^a-z0-9]/g, "");
   }
 
-  // Scan a header row and map our five known columns to their index.
+  // Scan a header row and map our known columns to their index.
   // Matching is tolerant of casing, spacing, and minor wording
   // differences (e.g. "Quantity" instead of "Qty") so a hand-edited
   // template still imports correctly.
   function detectColumns(headerRow){
-    var map = {name: -1, hs: -1, qty: -1, price: -1, total: -1};
+    var map = {name: -1, hs: -1, origin: -1, qty: -1, price: -1, total: -1};
     if(!headerRow) return map;
     headerRow.forEach(function(cell, idx){
       var h = normalizeHeaderCell(cell);
@@ -917,6 +1127,8 @@
         map.name = idx;
       }else if(map.hs === -1 && h.indexOf("hscode") !== -1){
         map.hs = idx;
+      }else if(map.origin === -1 && (h.indexOf("countryoforigin") !== -1 || h.indexOf("origin") !== -1)){
+        map.origin = idx;
       }else if(map.qty === -1 && (h === "qty" || h.indexOf("quantity") !== -1)){
         map.qty = idx;
       }else if(map.price === -1 && h.indexOf("unitprice") !== -1){
@@ -960,6 +1172,7 @@
 
       var name = colMap.name !== -1 ? String(row[colMap.name] == null ? "" : row[colMap.name]).trim() : "";
       var hs = colMap.hs !== -1 ? String(row[colMap.hs] == null ? "" : row[colMap.hs]).trim() : "";
+      var origin = colMap.origin !== -1 ? String(row[colMap.origin] == null ? "" : row[colMap.origin]).trim() : "";
       var qty = colMap.qty !== -1 ? parseFloat(row[colMap.qty]) : NaN;
       var price = colMap.price !== -1 ? parseFloat(row[colMap.price]) : NaN;
       if(!isFinite(qty)) qty = 0;
@@ -978,7 +1191,7 @@
         }
       }
 
-      imported.push({id: uid(), name: name, hs: hs, qty: qty, price: price});
+      imported.push({id: uid(), name: name, hs: hs, origin: origin, qty: qty, price: price});
     }
 
     if(imported.length === 0){
@@ -1135,6 +1348,30 @@
     return lines;
   }
 
+  /* ---------------------------------------------------------------
+     Purpose of Export — preset list plus a free-text custom option.
+     This is a standard customs declaration field (also seen as
+     "Reason for Export"), since duty/tax treatment often differs
+     for sales vs. samples, repairs, gifts, etc.
+  ----------------------------------------------------------------*/
+  function getExportPurpose(){
+    var sel = el.exportPurpose.value;
+    if(sel === "__custom__"){
+      return el.exportPurposeCustom.value.trim();
+    }
+    return sel.trim();
+  }
+
+  function updateExportPurposeVisibility(){
+    el.exportPurposeCustomField.style.display = (el.exportPurpose.value === "__custom__") ? "" : "none";
+  }
+
+  el.exportPurpose.addEventListener("change", function(){
+    updateExportPurposeVisibility();
+    renderPreview();
+    saveDraft();
+  });
+
   function renderPresetSelect(selectEl, presets, placeholder){
     var currentVal = selectEl.value;
     selectEl.innerHTML = '<option value="">' + placeholder + '</option>';
@@ -1240,7 +1477,7 @@
 
     var rowsHtml = "";
     if(sorted.length === 0){
-      rowsHtml = '<tr><td colspan="5" style="text-align:center;color:var(--ink-soft);padding:14px;">No line items yet</td></tr>';
+      rowsHtml = '<tr><td colspan="6" style="text-align:center;color:var(--ink-soft);padding:14px;">No line items yet</td></tr>';
     }else{
       var lastHs = null;
       sorted.forEach(function(it){
@@ -1252,6 +1489,7 @@
         rowsHtml += '<tr class="' + (isGroupStart ? "group-start" : "") + '">' +
           '<td>' + escapeHtml(it.name || "—") + '</td>' +
           '<td>' + escapeHtml(it.hs || "—") + '</td>' +
+          '<td>' + escapeHtml(it.origin || "—") + '</td>' +
           '<td class="num">' + qty + '</td>' +
           '<td class="num">' + fmtMoney(price) + '</td>' +
           '<td class="num">' + fmtMoney(qty * price) + '</td>' +
@@ -1269,13 +1507,17 @@
       return lines.map(function(l){ return '<p>' + escapeHtml(l) + '</p>'; }).join('');
     }
 
+    var exportPurpose = getExportPurpose();
+
     el.previewSheet.innerHTML =
+      (logoData ? '<div class="sheet-logo"><img src="' + logoData.data + '" alt="Company logo"></div>' : '') +
       '<div class="sheet-title">INVOICE</div>' +
       '<div class="sheet-meta">' +
         '<div><b>Invoice No.</b>' + escapeHtml(el.invoiceNo.value || "—") + '</div>' +
         '<div><b>Date</b>' + escapeHtml(formatDisplayDate(el.invoiceDate.value)) + '</div>' +
         '<div><b>Customer ID</b>' + escapeHtml(el.customerId.value || "—") + '</div>' +
       '</div>' +
+      (exportPurpose ? '<div class="sheet-purpose"><b>Purpose of Export</b>' + escapeHtml(exportPurpose) + '</div>' : '') +
       '<div class="sheet-parties">' +
         '<div class="party">' +
           '<h3>Shipper</h3>' +
@@ -1296,7 +1538,7 @@
       '</div>' +
       '<table class="sheet-table">' +
         '<thead><tr>' +
-          '<th>Item Name</th><th>HS Code</th><th class="num">Qty</th><th class="num">Unit Price (USD)</th><th class="num">Line Total (USD)</th>' +
+          '<th>Item Name</th><th>HS Code</th><th>Country of Origin</th><th class="num">Qty</th><th class="num">Unit Price (USD)</th><th class="num">Line Total (USD)</th>' +
         '</tr></thead>' +
         '<tbody>' + rowsHtml + '</tbody>' +
       '</table>' +
@@ -1317,7 +1559,7 @@
      Draft autosave (so a refresh doesn't lose in-progress work)
   ----------------------------------------------------------------*/
   var draftFieldIds = [
-    "invoiceNo","invoiceDate","customerId",
+    "invoiceNo","invoiceDate","customerId","exportPurpose","exportPurposeCustom",
     "shipperName","shipperTaxId","shipperContact","shipperPhone",
     "shipperStreet","shipperCity","shipperState","shipperPostalCode","shipperCountry",
     "consigneeName","consigneeTaxId","consigneeContact","consigneePhone",
@@ -1343,6 +1585,7 @@
           id: it.id || uid(),
           name: it.name || "",
           hs: it.hs || "",
+          origin: it.origin || "",
           qty: it.qty !== undefined ? it.qty : 1,
           price: it.price !== undefined ? it.price : 0
         });
@@ -1359,11 +1602,153 @@
   });
 
   /* ---------------------------------------------------------------
+     New Invoice — clears invoice-specific fields (number, date,
+     customer ID, line items) so the next shipment starts fresh.
+     Shipper/Consignee fields are left as-is since consecutive
+     shipments often reuse the same parties; saved presets and the
+     item catalog are untouched either way.
+  ----------------------------------------------------------------*/
+  el.newInvoiceBtn.addEventListener("click", function(){
+    if(!confirm("Start a new invoice? This clears the Invoice No., Customer ID, Purpose of Export, and all line items. Shipper/Consignee fields and your saved presets are kept.")) return;
+    el.invoiceNo.value = "";
+    el.customerId.value = "";
+    el.exportPurpose.value = "";
+    el.exportPurposeCustom.value = "";
+    updateExportPurposeVisibility();
+    setDefaultDateIfEmpty(true);
+    items = [];
+    addItemRow();
+    toast("Started a new invoice.");
+  });
+
+  /* ---------------------------------------------------------------
+     Company logo (optional) — stored as base64 in localStorage so
+     it persists across sessions like the other saved presets.
+  ----------------------------------------------------------------*/
+  function renderLogoThumb(){
+    if(logoData && logoData.data){
+      el.logoThumb.innerHTML = '<img src="' + logoData.data + '" alt="Company logo">';
+      el.logoRemoveBtn.style.display = "";
+    }else{
+      el.logoThumb.innerHTML = '<span class="empty">No logo</span>';
+      el.logoRemoveBtn.style.display = "none";
+    }
+  }
+
+  el.logoUploadBtn.addEventListener("click", function(){
+    el.logoInput.click();
+  });
+
+  el.logoInput.addEventListener("change", function(e){
+    var file = e.target.files && e.target.files[0];
+    if(!file) return;
+
+    if(!/^image\/(png|jpe?g)$/.test(file.type)){
+      toast("Logo must be a PNG or JPG image.");
+      el.logoInput.value = "";
+      return;
+    }
+    if(file.size > 2 * 1024 * 1024){
+      toast("That image is quite large — for best results use a file under 2MB.");
+    }
+
+    var reader = new FileReader();
+    reader.onload = function(evt){
+      var dataUrl = evt.target.result;
+      var img = new Image();
+      img.onload = function(){
+        logoData = {
+          data: dataUrl,
+          w: img.naturalWidth,
+          h: img.naturalHeight,
+          format: file.type === "image/png" ? "PNG" : "JPEG"
+        };
+        if(saveJSON(LS_LOGO, logoData)){
+          renderLogoThumb();
+          renderPreview();
+          toast("Logo saved.");
+        }
+      };
+      img.onerror = function(){ toast("Could not read that image."); };
+      img.src = dataUrl;
+    };
+    reader.onerror = function(){ toast("Could not read that file."); };
+    reader.readAsDataURL(file);
+    el.logoInput.value = "";
+  });
+
+  el.logoRemoveBtn.addEventListener("click", function(){
+    logoData = null;
+    try{ localStorage.removeItem(LS_LOGO); }catch(e){ /* ignore */ }
+    renderLogoThumb();
+    renderPreview();
+    toast("Logo removed.");
+  });
+
+  renderLogoThumb();
+
+  /* ---------------------------------------------------------------
+     Pre-export validation — catches missing required fields before
+     generating a PDF instead of letting an incomplete invoice go out.
+  ----------------------------------------------------------------*/
+  function validateBeforeExport(){
+    var issues = [];
+
+    if(!el.customerId.value.trim()) issues.push("Customer ID is required");
+    if(!getExportPurpose()) issues.push("Purpose of Export is required");
+    if(!el.shipperName.value.trim()) issues.push("Shipper company name is required");
+    if(!el.consigneeName.value.trim()) issues.push("Consignee company name is required");
+
+    if(items.length === 0){
+      issues.push("Add at least one line item");
+    }else{
+      items.forEach(function(it, idx){
+        var rowLabel = "Item " + (idx + 1);
+        if(!String(it.name || "").trim()) issues.push(rowLabel + ": Item Name is required");
+        if(!String(it.hs || "").trim()) issues.push(rowLabel + ": HS Code is required");
+        var qty = parseFloat(it.qty);
+        if(!isFinite(qty) || qty <= 0) issues.push(rowLabel + ": Qty must be greater than 0");
+        var price = parseFloat(it.price);
+        if(!isFinite(price) || price <= 0) issues.push(rowLabel + ": Unit Price must be greater than 0");
+      });
+    }
+
+    return issues;
+  }
+
+  /* ---------------------------------------------------------------
+     Export filename — named after Invoice No. when it's filled in;
+     otherwise falls back to today's date + "shipping invoice" so the
+     file is still identifiable.
+  ----------------------------------------------------------------*/
+  function sanitizeFilenamePart(s){
+    return String(s == null ? "" : s).trim().replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, "_");
+  }
+
+  function buildExportFilename(){
+    var invNo = el.invoiceNo.value.trim();
+    if(invNo){
+      return sanitizeFilenamePart(invNo) + ".pdf";
+    }
+    var today = new Date();
+    var iso = today.getFullYear() + "-" +
+      String(today.getMonth()+1).padStart(2,"0") + "-" +
+      String(today.getDate()).padStart(2,"0");
+    return iso + "-shipping-invoice.pdf";
+  }
+
+  /* ---------------------------------------------------------------
      PDF export (jsPDF, vector text — crisp & selectable)
   ----------------------------------------------------------------*/
   el.exportPdfBtn.addEventListener("click", function(){
-    if(items.length === 0){
-      toast("Add at least one line item before exporting.");
+    var issues = validateBeforeExport();
+    if(issues.length > 0){
+      var shown = issues.slice(0, 6);
+      var msg = "Please fix before exporting:\n" + shown.map(function(s){ return "• " + s; }).join("\n");
+      if(issues.length > shown.length){
+        msg += "\n…and " + (issues.length - shown.length) + " more";
+      }
+      toast(msg);
       return;
     }
     try{
@@ -1423,11 +1808,26 @@
     }
 
     function header(){
+      var titleY = y;
+
+      if(logoData){
+        var maxLogoW = 110, maxLogoH = 38;
+        var ratio = (logoData.w && logoData.h) ? (logoData.w / logoData.h) : 1;
+        var drawW = maxLogoW, drawH = maxLogoW / ratio;
+        if(drawH > maxLogoH){ drawH = maxLogoH; drawW = maxLogoH * ratio; }
+        try{
+          doc.addImage(logoData.data, logoData.format || "PNG", margin, y - 6, drawW, drawH);
+          titleY = Math.max(titleY, (y - 6) + drawH + 8);
+        }catch(e){
+          console.error("Logo render failed", e);
+        }
+      }
+
       doc.setFont("helvetica", "bold");
       doc.setFontSize(20);
       doc.setTextColor(20,20,20);
       doc.text("INVOICE", pageW/2, y, {align:"center"});
-      y += 22;
+      y = Math.max(y + 22, titleY);
 
       doc.setDrawColor(210,214,219);
       doc.setLineWidth(0.6);
@@ -1440,6 +1840,13 @@
       drawLabelValue("Date", el.invoiceDate.value || "—", margin + metaColW, metaY);
       drawLabelValue("Customer ID", el.customerId.value || "—", margin + metaColW*2, metaY);
       y += 30;
+
+      var purposeVal = getExportPurpose();
+      if(purposeVal){
+        drawLabelValue("Purpose of Export", purposeVal, margin, y);
+        y += 24;
+      }
+
       doc.line(margin, y, margin + contentW, y);
       y += 16;
 
@@ -1511,11 +1918,12 @@
 
     // ---- table setup ----
     var cols = [
-      {key:"name", label:"Item Name", w: contentW*0.36, align:"left"},
-      {key:"hs", label:"HS Code", w: contentW*0.16, align:"left"},
-      {key:"qty", label:"Qty", w: contentW*0.10, align:"right"},
-      {key:"price", label:"Unit Price (USD)", w: contentW*0.17, align:"right"},
-      {key:"total", label:"Line Total (USD)", w: contentW*0.21, align:"right"}
+      {key:"name", label:"Item Name", w: contentW*0.28, align:"left"},
+      {key:"hs", label:"HS Code", w: contentW*0.14, align:"left"},
+      {key:"origin", label:"Origin", w: contentW*0.12, align:"left"},
+      {key:"qty", label:"Qty", w: contentW*0.08, align:"right"},
+      {key:"price", label:"Unit Price (USD)", w: contentW*0.16, align:"right"},
+      {key:"total", label:"Line Total (USD)", w: contentW*0.22, align:"right"}
     ];
 
     function colX(idx){
@@ -1553,10 +1961,12 @@
       var price = parseFloat(item.price) || 0;
       var lineTotal = qty * price;
       var hsVal = (item.hs || "—");
+      var originVal = (item.origin || "—");
 
       var nameLines = doc.splitTextToSize(item.name || "—", cols[0].w - 12);
       var hsLines = doc.splitTextToSize(hsVal, cols[1].w - 12);
-      var rowH = Math.max(nameLines.length, hsLines.length, 1) * 11.5 + 8;
+      var originLines = doc.splitTextToSize(originVal, cols[2].w - 12);
+      var rowH = Math.max(nameLines.length, hsLines.length, originLines.length, 1) * 11.5 + 8;
 
       if(ensureSpace(rowH)){
         drawTableHeader();
@@ -1580,9 +1990,10 @@
       var rowTop = y + 11;
       doc.text(nameLines, colX(0) + 6, rowTop);
       doc.text(hsLines, colX(1) + 6, rowTop);
-      doc.text(String(qty), colX(2) + cols[2].w - 6, rowTop, {align:"right"});
-      doc.text(fmtMoney(price), colX(3) + cols[3].w - 6, rowTop, {align:"right"});
-      doc.text(fmtMoney(lineTotal), colX(4) + cols[4].w - 6, rowTop, {align:"right"});
+      doc.text(originLines, colX(2) + 6, rowTop);
+      doc.text(String(qty), colX(3) + cols[3].w - 6, rowTop, {align:"right"});
+      doc.text(fmtMoney(price), colX(4) + cols[4].w - 6, rowTop, {align:"right"});
+      doc.text(fmtMoney(lineTotal), colX(5) + cols[5].w - 6, rowTop, {align:"right"});
 
       y += rowH;
       doc.setDrawColor(232,236,240);
@@ -1632,16 +2043,15 @@
       doc.text("Page " + p + " of " + totalPages, pageW/2, pageH - 24, {align:"center"});
     }
 
-    var invNo = (el.invoiceNo.value || "invoice").trim().replace(/[^a-z0-9\-_]+/gi, "_");
-    doc.save("shipping-invoice-" + invNo + ".pdf");
+    doc.save(buildExportFilename());
     toast("PDF exported.");
   }
 
   /* ---------------------------------------------------------------
      Init
   ----------------------------------------------------------------*/
-  function setDefaultDateIfEmpty(){
-    if(!el.invoiceDate.value){
+  function setDefaultDateIfEmpty(force){
+    if(force || !el.invoiceDate.value){
       var today = new Date();
       var iso = today.getFullYear() + "-" +
         String(today.getMonth()+1).padStart(2,"0") + "-" +
@@ -1652,6 +2062,7 @@
 
   var hadDraft = loadDraft();
   setDefaultDateIfEmpty();
+  updateExportPurposeVisibility();
   if(items.length === 0 && !hadDraft){
     addItemRow(); // start with one empty row for convenience
   }else{
