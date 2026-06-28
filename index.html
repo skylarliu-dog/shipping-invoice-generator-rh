@@ -292,6 +292,7 @@
 
   /* ---------- info icon / tooltip ---------- */
   .col-hs{position:relative;}
+  .th-info{position:relative;}
   .info-icon{
     position:relative;
     display:inline-flex;
@@ -342,6 +343,12 @@
     color:var(--ink);
     text-transform:none;
     letter-spacing:0;
+  }
+  .info-tooltip p:last-child{margin-bottom:0;}
+  .info-tooltip .tooltip-example{
+    font-style:italic;
+    color:var(--ink-soft);
+    font-size:11px;
   }
   .info-tooltip a{
     display:inline-block;
@@ -428,17 +435,13 @@
   }
   .sheet-meta div b{display:block;color:var(--ink-soft);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;}
   .sheet-purpose{
-    font-size:11.5px;
-    margin:-6px 0 18px;
+    text-align:center;
+    font-size:12.5px;
+    color:var(--ink);
+    margin:0 0 16px;
   }
   .sheet-purpose b{
-    display:inline;
-    color:var(--ink-soft);
-    font-weight:600;
-    font-size:10px;
-    text-transform:uppercase;
-    letter-spacing:.05em;
-    margin-right:6px;
+    font-weight:700;
   }
   .sheet-parties{
     display:grid;
@@ -730,7 +733,15 @@
         <table class="items-table">
           <thead>
             <tr>
-              <th>Item Name</th>
+              <th class="th-info">
+                Item Name
+                <span class="info-icon" tabindex="0">?
+                  <div class="info-tooltip">
+                    <p>Must include exactly what the item is, what it is made of, and its intended use.</p>
+                    <p class="tooltip-example">e.g. Men's 100% Cotton Long-Sleeve Dress Shirt</p>
+                  </div>
+                </span>
+              </th>
               <th class="col-hs">
                 HS Code
                 <span class="info-icon" tabindex="0">?
@@ -1512,12 +1523,12 @@
     el.previewSheet.innerHTML =
       (logoData ? '<div class="sheet-logo"><img src="' + logoData.data + '" alt="Company logo"></div>' : '') +
       '<div class="sheet-title">INVOICE</div>' +
+      (exportPurpose ? '<div class="sheet-purpose"><b>Purpose of Export:</b> ' + escapeHtml(exportPurpose) + '</div>' : '') +
       '<div class="sheet-meta">' +
         '<div><b>Invoice No.</b>' + escapeHtml(el.invoiceNo.value || "—") + '</div>' +
         '<div><b>Date</b>' + escapeHtml(formatDisplayDate(el.invoiceDate.value)) + '</div>' +
         '<div><b>Customer ID</b>' + escapeHtml(el.customerId.value || "—") + '</div>' +
       '</div>' +
-      (exportPurpose ? '<div class="sheet-purpose"><b>Purpose of Export</b>' + escapeHtml(exportPurpose) + '</div>' : '') +
       '<div class="sheet-parties">' +
         '<div class="party">' +
           '<h3>Shipper</h3>' +
@@ -1829,6 +1840,27 @@
       doc.text("INVOICE", pageW/2, y, {align:"center"});
       y = Math.max(y + 22, titleY);
 
+      // Purpose of Export — plain centered text right under the title,
+      // so it's seen first without competing visually with the rest.
+      var purposeVal = getExportPurpose();
+      if(purposeVal){
+        var label = "Purpose of Export: ";
+        doc.setFontSize(10);
+        doc.setFont("helvetica","bold");
+        var labelW = doc.getTextWidth(label);
+        doc.setFont("helvetica","normal");
+        var valueW = doc.getTextWidth(purposeVal);
+        var startX = pageW/2 - (labelW + valueW)/2;
+
+        doc.setTextColor(20,20,20);
+        doc.setFont("helvetica","bold");
+        doc.text(label, startX, y);
+        doc.setFont("helvetica","normal");
+        doc.text(purposeVal, startX + labelW, y);
+
+        y += 18;
+      }
+
       doc.setDrawColor(210,214,219);
       doc.setLineWidth(0.6);
 
@@ -1840,12 +1872,6 @@
       drawLabelValue("Date", el.invoiceDate.value || "—", margin + metaColW, metaY);
       drawLabelValue("Customer ID", el.customerId.value || "—", margin + metaColW*2, metaY);
       y += 30;
-
-      var purposeVal = getExportPurpose();
-      if(purposeVal){
-        drawLabelValue("Purpose of Export", purposeVal, margin, y);
-        y += 24;
-      }
 
       doc.line(margin, y, margin + contentW, y);
       y += 16;
